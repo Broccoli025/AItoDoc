@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mark2Doc · Markdown → Word</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Lora:ital,wght@0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+window.MathJax = {
+  tex: { inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']], processEscapes:true },
+  svg: { fontCache:'global' },
+  startup: { typeset:false }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+<style>
+:root {
+  --bg:       #f5f4f0;
+  --surface:  #ffffff;
+  --surface2: #fafaf8;
+  --border:   #e8e6e1;
+  --border2:  #d2cfc8;
+  --text:     #1c1b18;
+  --text2:    #6b6760;
+  --text3:    #aba79f;
+  --accent:   #2563eb;
+  --accent-h: #1d4ed8;
+  --accent-lt:#eff4ff;
+  --green:    #16a34a;
+  --green-lt: #f0fdf4;
+  --red:      #dc2626;
+  --red-lt:   #fef2f2;
+  --sb-w:     256px;
+  --hh:       52px;
+  --fh:       62px;
+  --font:     'Inter', system-ui, sans-serif;
+  --mono:     'JetBrains Mono', monospace;
+  --serif:    'Lora', Georgia, serif;
+}
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:var(--font); -webkit-font-smoothing:antialiased; }
+
+/* ─── HEADER ──────────────────────────────── */
+header {
+  position:fixed; inset:0 0 auto 0; height:var(--hh); z-index:200;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 18px; gap:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.05);
+}
+.logo { display:flex; align-items:center; gap:7px; font-size:16px; font-weight:600; letter-spacing:-.02em; }
+.logo-mark { width:26px; height:26px; border-radius:6px; background:var(--accent); display:flex; align-items:center; justify-content:center; }
+.logo-mark svg { stroke:#fff; }
+.h-sep { width:1px; height:18px; background:var(--border); }
+.h-sub { font-size:12px; color:var(--text3); }
+.h-gap { flex:1; }
+#mj-badge { font-size:11px; font-family:var(--mono); display:flex; align-items:center; gap:5px; color:var(--text3); transition:color .3s; }
+#mj-badge.ready { color:var(--green); }
+#mj-badge .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+/* ─── LAYOUT ──────────────────────────────── */
+.app { display:flex; margin-top:var(--hh); height:calc(100vh - var(--hh)); overflow:hidden; }
+
+/* ─── SIDEBAR ─────────────────────────────── */
+.sidebar { width:var(--sb-w); flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; transition:width 0.22s cubic-bezier(0.4,0,0.2,1); }
+.sidebar.collapsed { width:0; border-right-color:transparent; }
+.sb-top { padding:12px 10px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.sb-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.sb-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--text3); }
+.sb-badge { font-size:10.5px; font-family:var(--mono); background:var(--bg); color:var(--text3); padding:1px 7px; border-radius:10px; border:1px solid var(--border); }
+.sb-collapse-btn { width:20px; height:20px; border-radius:4px; background:none; border:1px solid var(--border); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text3); flex-shrink:0; transition:all .12s; }
+.sb-collapse-btn:hover { background:var(--bg); color:var(--text2); border-color:var(--border2); }
+.sb-expand-fab { position:fixed; left:0; top:calc(var(--hh) + 10px); z-index:150; width:22px; height:40px; background:var(--surface); border:1px solid var(--border); border-left:none; border-radius:0 6px 6px 0; cursor:pointer; display:none; align-items:center; justify-content:center; color:var(--text3); box-shadow:2px 0 5px rgba(0,0,0,.08); transition:all .12s; }
+.sb-expand-fab:hover { color:var(--accent); background:var(--accent-lt); border-color:#bfdbfe; }
+.sb-expand-fab.visible { display:flex; }
+.new-btn { width:100%; padding:7px 10px; background:var(--accent); color:#fff; border:none; border-radius:6px; font-family:var(--font); font-size:12.5px; font-weight:500; cursor:pointer; transition:background .12s; display:flex; align-items:center; justify-content:center; gap:5px; }
+.new-btn:hover { background:var(--accent-h); }
+.arch-list { flex:1; overflow-y:auto; padding:6px; display:flex; flex-direction:column; gap:2px; }
+.arch-empty { color:var(--text3); font-size:12px; text-align:center; padding:28px 12px; line-height:1.7; }
+.arch-item { border-radius:7px; padding:8px 10px; cursor:pointer; transition:background .1s; border:1px solid transparent; position:relative; }
+.arch-item:hover { background:var(--bg); border-color:var(--border); }
+.arch-item.active { background:var(--accent-lt); border-color:#bfdbfe; }
+.arch-name { font-size:13px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:22px; }
+.arch-item.active .arch-name { color:var(--accent); }
+.arch-meta { font-size:11px; color:var(--text3); margin-top:2px; }
+.arch-del { position:absolute; right:7px; top:50%; transform:translateY(-50%); width:18px; height:18px; border-radius:4px; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text3); opacity:0; transition:opacity .1s, background .1s; }
+.arch-item:hover .arch-del { opacity:1; }
+.arch-del:hover { background:var(--red-lt); color:var(--red); }
+
+/* ─── MAIN ────────────────────────────────── */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+
+/* Tabs */
+.tabs { height:38px; flex-shrink:0; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:stretch; padding:0 16px; }
+.tab { display:flex; align-items:center; gap:5px; padding:0 12px; cursor:pointer; border-bottom:2px solid transparent; font-size:12px; font-weight:500; color:var(--text3); transition:color .12s, border-color .12s; white-space:nowrap; margin-bottom:-1px; }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tab:hover:not(.active) { color:var(--text2); }
+
+/* Editor split */
+.editor-area { flex:1; display:flex; overflow:hidden; min-height:0; position:relative; }
+.ep { display:flex; flex-direction:column; overflow:hidden; min-height:0; min-width:0; background:var(--surface); }
+.ep+.ep { border-left:none; }
+.ep-head { height:36px; padding:0 14px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); background:var(--surface2); }
+.ep-label { font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--text3); }
+.ep-btns { display:flex; gap:4px; }
+.mbtn { background:none; border:1px solid var(--border2); color:var(--text2); font-family:var(--font); font-size:11px; padding:2px 9px; border-radius:5px; cursor:pointer; transition:all .1s; line-height:1.7; }
+.mbtn:hover { border-color:var(--text2); color:var(--text); background:var(--bg); }
+
+#md-input { flex:1; border:none; resize:none; background:var(--surface); color:var(--text); font-family:var(--mono); font-size:12.5px; line-height:1.75; padding:18px 20px; outline:none; overflow-y:auto; min-height:0; tab-size:2; }
+#md-input::placeholder { color:var(--text3); font-style:italic; font-family:var(--font); }
+
+#preview { flex:1; overflow-y:auto; padding:24px 30px; font-family:var(--serif); font-size:14.5px; line-height:1.85; background:var(--surface); color:var(--text); min-height:0; }
+#preview h1 { font-family:var(--serif); font-size:1.65em; font-weight:600; margin:.9em 0 .4em; padding-bottom:.3em; border-bottom:1px solid var(--border); }
+#preview h2 { font-size:1.28em; font-weight:600; margin:.85em 0 .25em; }
+#preview h3 { font-size:1.08em; font-weight:600; margin:.7em 0 .2em; }
+#preview p  { margin:.5em 0; }
+#preview ul,#preview ol { margin:.4em 0; padding-left:1.6em; }
+#preview li { margin:.2em 0; }
+#preview strong { font-weight:600; }
+#preview em { font-style:italic; }
+#preview code { font-family:var(--mono); font-size:.81em; background:#f3f4f6; padding:1px 5px; border-radius:4px; color:#b45309; }
+#preview pre { background:#f8f8f6; border:1px solid var(--border); padding:13px 16px; border-radius:7px; overflow-x:auto; margin:.7em 0; font-family:var(--mono); font-size:12px; line-height:1.65; }
+#preview pre code { background:none; padding:0; color:var(--text); }
+#preview blockquote { border-left:3px solid var(--border2); margin:.7em 0; padding:.2em 0 .2em 1em; color:var(--text2); font-style:italic; }
+#preview hr { border:none; border-top:1px solid var(--border); margin:1.2em 0; }
+#preview a { color:var(--accent); }
+#preview .math-display { text-align:center; margin:1em 0; overflow-x:auto; }
+#preview table { border-collapse:collapse; width:100%; margin:.7em 0; font-size:.9em; font-family:var(--font); }
+#preview th { background:#f3f4f6; font-weight:600; }
+#preview th,#preview td { border:1px solid var(--border); padding:6px 10px; text-align:left; }
+#preview tr:nth-child(even) td { background:#fafafa; }
+
+/* ─── DRAG DIVIDER ────────────────────────── */
+.divider { width:5px; flex-shrink:0; cursor:col-resize; background:var(--border); display:flex; align-items:center; justify-content:center; z-index:10; transition:background .15s; }
+.divider:hover, .divider.dragging { background:#c5c0b8; }
+.divider::after { content:''; width:2px; height:32px; border-radius:2px; background:var(--border2); display:block; transition:background .15s; }
+.divider:hover::after, .divider.dragging::after { background:#9e9890; }
+
+/* ─── FOOTER ──────────────────────────────── */
+footer { height:var(--fh); flex-shrink:0; background:var(--surface); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 16px; gap:8px; box-shadow:0 -1px 3px rgba(0,0,0,.04); }
+.fname-row { display:flex; align-items:center; border:1px solid var(--border2); border-radius:7px; overflow:hidden; transition:border-color .15s, box-shadow .15s; flex-shrink:0; }
+.fname-row:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px #dbeafe; }
+#filename { background:var(--surface); border:none; color:var(--text); font-family:var(--mono); font-size:12.5px; padding:7px 11px; outline:none; width:150px; }
+.fname-ext { background:var(--bg); color:var(--text3); font-family:var(--mono); font-size:12px; padding:7px 9px; border-left:1px solid var(--border2); user-select:none; }
+
+/* Copy button — primary */
+.copy-btn {
+  display:flex; align-items:center; gap:7px;
+  background:var(--accent); color:#fff; border:none;
+  font-family:var(--font); font-size:13px; font-weight:500;
+  padding:9px 20px; border-radius:7px; cursor:pointer;
+  transition:all .15s; white-space:nowrap; flex-shrink:0;
+  box-shadow:0 1px 3px rgba(37,99,235,.2);
+}
+.copy-btn:hover:not(:disabled) { background:var(--accent-h); transform:translateY(-1px); box-shadow:0 3px 8px rgba(37,99,235,.28); }
+.copy-btn:active:not(:disabled) { transform:none; }
+.copy-btn:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+.copy-btn.success { background:var(--green); box-shadow:0 1px 3px rgba(22,163,74,.25); }
+.copy-btn.success:hover { background:#15803d; }
+
+/* Save archive button */
+.sbtn { display:flex; align-items:center; gap:6px; background:none; border:1px solid var(--border2); color:var(--text2); font-family:var(--font); font-size:12.5px; padding:8px 14px; border-radius:7px; cursor:pointer; transition:all .12s; white-space:nowrap; flex-shrink:0; }
+.sbtn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-lt); }
+
+.status { flex:1; font-size:11.5px; font-family:var(--mono); color:var(--text3); transition:color .2s; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.status.ok  { color:var(--green); }
+.status.err { color:var(--red); }
+
+@keyframes spin { to { transform:rotate(360deg); } }
+.spin { width:13px; height:13px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .65s linear infinite; flex-shrink:0; }
+
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text3); }
+.no-select { user-select:none; pointer-events:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="1" y="1" width="11" height="11" rx="2"/>
+        <line x1="3.5" y1="4.5" x2="9.5" y2="4.5"/>
+        <line x1="3.5" y1="6.5" x2="7.5" y2="6.5"/>
+        <line x1="3.5" y1="8.5" x2="6"   y2="8.5"/>
+      </svg>
+    </div>
+    Mark2Doc
+  </div>
+  <div class="h-sep"></div>
+  <span class="h-sub">Markdown → Word · 支持 LaTeX 公式</span>
+  <div class="h-gap"></div>
+  <span id="mj-badge"><span class="dot"></span>&nbsp;MathJax 加载中…</span>
+</header>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-top">
+      <div class="sb-title-row">
+        <span class="sb-title">存档记录</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="sb-badge" id="arch-count">0</span>
+          <button class="sb-collapse-btn" id="sb-collapse-btn" title="折叠侧边栏">
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,1 2,4.5 6,8"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="new-btn" id="new-btn">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5.5" y1="1" x2="5.5" y2="10"/><line x1="1" y1="5.5" x2="10" y2="5.5"/></svg>
+        新建文档
+      </button>
+    </div>
+    <div class="arch-list" id="arch-list">
+      <div class="arch-empty">存档后，记录将在此显示</div>
+    </div>
+  </aside>
+
+  <!-- SIDEBAR EXPAND FAB -->
+  <button class="sb-expand-fab" id="sb-expand-fab" title="展开存档">
+    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,1 7,4.5 3,8"/></svg>
+  </button>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <div class="tabs">
+      <div class="tab active" id="tab-split"   onclick="switchTab('split')">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="0.5" y="0.5" width="10" height="10" rx="1.5"/><line x1="5.5" y1="0.5" x2="5.5" y2="10.5"/></svg>分栏
+      </div>
+      <div class="tab" id="tab-edit"    onclick="switchTab('edit')">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8.5l1.2-.4 4.3-4.3-.8-.8-4.3 4.3-.4 1.2z"/><line x1="6.5" y1="2" x2="9" y2="4.5"/></svg>仅编辑
+      </div>
+      <div class="tab" id="tab-preview" onclick="switchTab('preview')">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M0.5 5.5s2-3.5 5-3.5 5 3.5 5 3.5-2 3.5-5 3.5-5-3.5-5-3.5z"/><circle cx="5.5" cy="5.5" r="1.5"/></svg>仅预览
+      </div>
+    </div>
+
+    <div class="editor-area" id="editor-area">
+      <div class="ep" id="pane-input" style="flex:1">
+        <div class="ep-head">
+          <span class="ep-label">Markdown 输入</span>
+          <div class="ep-btns">
+            <button class="mbtn" id="btn-sample">示例</button>
+            <button class="mbtn" id="btn-clear">清空</button>
+          </div>
+        </div>
+        <textarea id="md-input" spellcheck="false"
+          placeholder="粘贴来自豆包、GPT、deepseek、gemini、Claude等 AI 的 Markdown…&#10;&#10;支持公式：$行内$  $$块公式$$  \(…\)  \[…\]&#10;拖拽中间分隔线可调整两栏宽度"></textarea>
+      </div>
+
+      <div class="divider" id="divider"></div>
+
+      <div class="ep" id="pane-preview" style="flex:1">
+        <div class="ep-head">
+          <span class="ep-label">实时预览</span>
+          <span id="pv-hint" style="font-size:11px;color:var(--text3);font-family:var(--font);"></span>
+        </div>
+        <div id="preview"></div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="fname-row">
+        <input type="text" id="filename" value="document" autocomplete="off" spellcheck="false">
+        <span class="fname-ext">.docx</span>
+      </div>
+
+      <!-- PRIMARY: copy to Word -->
+      <button class="copy-btn" id="copy-btn">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4.5" y="4.5" width="8" height="8" rx="1.5"/>
+          <path d="M9.5 4.5V3A1.5 1.5 0 0 0 8 1.5H3A1.5 1.5 0 0 0 1.5 3v5A1.5 1.5 0 0 0 3 9.5h1.5"/>
+        </svg>
+        复制到 Word
+      </button>
+
+      <!-- SECONDARY: save archive -->
+      <button class="sbtn" id="save-btn">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1.5 1.5h7.5l2 2v8h-9.5v-10z"/><rect x="3.5" y="7.5" width="6" height="4"/><rect x="3.5" y="1.5" width="4" height="3"/>
+        </svg>
+        存入档案
+      </button>
+
+      <span class="status" id="status"></span>
+    </footer>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+
+<script>
+'use strict';
+
+// ─── SAMPLE ────────────────────────────────────────────────────
+const SAMPLE = `# Component 5: Interpretation Critique
+*Weißea et al. 2015, Mechanistic links between cellular trade-offs, gene expression, and growth*
+
+## 1. 结论支持程度
+
+**支持程度**：部分支持
+
+**论据：**
+
+- **支持方面**：模型与 Scott et al. (2010) 数据定量吻合（Fig1B），推导出 Monod 定律及核糖体质量分数–增长率关系。
+
+- **不支持方面**：推导依赖未验证的近似，例如稳态时 $a \\ll M$（SI Eq.18）；$\\phi_r \\ll \\phi_q$（SI Eq.33）；酶活性作为限速步骤（SI Eq.35）。
+
+## 2. 核心公式
+
+翻译延伸率由以下公式给出：
+
+$$\\gamma(a) = \\frac{\\gamma_{max} \\cdot a}{K_\\gamma + a}$$
+
+进化分析使用 $K_\\gamma = 3.0 \\times 10^8$，拟合使用 $K_\\gamma = 7$，相差约 $4.3 \\times 10^7$ 倍。
+
+## 3. 代码示例
+
+\`\`\`python
+def gamma(a, gamma_max, K_gamma):
+    return gamma_max * a / (K_gamma + a)
+
+print(gamma(1e6, 1, 3e8))  # ≈ 0.003
+print(gamma(1e6, 1, 7))    # ≈ 1.0
+\`\`\`
+
+> 因此，"同一三种权衡同时解释生长定律和进化稳定策略"的主张并不成立。
+`;
+
+// ─── MARKED EXTENSIONS ─────────────────────────────────────────
+marked.use({ extensions:[
+  {
+    name:'mathBlock', level:'block',
+    start(s){ const a=s.indexOf('$$'),b=s.indexOf('\\['); return Math.min(...[a,b].filter(x=>x>=0).concat([Infinity])); },
+    tokenizer(s){
+      let m=s.match(/^\$\$([\s\S]*?)\$\$/); if(m) return {type:'mathBlock',raw:m[0],math:m[1].trim()};
+      m=s.match(/^\\\[([\s\S]*?)\\\]/s);    if(m) return {type:'mathBlock',raw:m[0],math:m[1].trim()};
+    },
+    renderer(t){ return `<div class="math-display">\\[${t.math}\\]</div>\n`; }
+  },
+  {
+    name:'mathInline', level:'inline',
+    start(s){ const a=s.indexOf('$'),b=s.indexOf('\\('); return Math.min(...[a,b].filter(x=>x>=0).concat([Infinity])); },
+    tokenizer(s){
+      let m=s.match(/^\\\(([\s\S]*?)\\\)/); if(m) return {type:'mathInline',raw:m[0],math:m[1].trim()};
+      m=s.match(/^\$(?!\$)((?:[^$\\]|\\[\s\S])*?)\$/); if(m) return {type:'mathInline',raw:m[0],math:m[1].trim()};
+    },
+    renderer(t){ return `<span class="math-inline">\\(${t.math}\\)</span>`; }
+  }
+]});
+
+// ─── PREVIEW ───────────────────────────────────────────────────
+const inp    = document.getElementById('md-input');
+const pv     = document.getElementById('preview');
+const pvHint = document.getElementById('pv-hint');
+let pvTimer  = null;
+
+function renderPreview(){
+  const md = inp.value;
+  if(!md.trim()){
+    pv.innerHTML='<p style="color:#aba79f;font-size:13px;font-family:Inter,sans-serif;text-align:center;padding:40px 0;line-height:1.8">预览将在此处显示<br><span style="font-size:11px">在左侧粘贴 Markdown 内容</span></p>';
+    return;
+  }
+  pv.innerHTML = marked.parse(md);
+  if(window.MathJax && MathJax.typesetPromise){
+    pvHint.textContent='渲染公式…';
+    MathJax.typesetPromise([pv]).then(()=>{ pvHint.textContent=''; }).catch(()=>{ pvHint.textContent='公式错误'; });
+  }
+}
+inp.addEventListener('input',()=>{ clearTimeout(pvTimer); pvTimer=setTimeout(renderPreview,350); });
+
+// ─── TABS ──────────────────────────────────────────────────────
+function switchTab(t){
+  ['split','edit','preview'].forEach(x=>{ document.getElementById('tab-'+x).classList.toggle('active',x===t); });
+  const ip  = document.getElementById('pane-input');
+  const pp  = document.getElementById('pane-preview');
+  const div = document.getElementById('divider');
+  if(t==='edit'){
+    ip.style.width='100%'; ip.style.display='flex';
+    pp.style.display='none'; div.style.display='none';
+  } else if(t==='preview'){
+    ip.style.display='none'; pp.style.flex='1';
+    pp.style.display='flex'; div.style.display='none';
+  } else {
+    ip.style.width=''; ip.style.flex='1';
+    ip.style.display='flex'; pp.style.display='flex'; div.style.display='flex';
+    pp.style.flex='1';
+  }
+}
+switchTab('split');
+
+// ─── DRAG RESIZE ───────────────────────────────────────────────
+(function(){
+  const divider = document.getElementById('divider');
+  const paneL   = document.getElementById('pane-input');
+  const area    = document.getElementById('editor-area');
+  let drag=false, startX=0, startW=0;
+  divider.addEventListener('mousedown', e=>{ drag=true; startX=e.clientX; startW=paneL.getBoundingClientRect().width; divider.classList.add('dragging'); document.body.classList.add('no-select'); e.preventDefault(); });
+  document.addEventListener('mousemove', e=>{ if(!drag) return; const aw=area.getBoundingClientRect().width; const dw=divider.offsetWidth; const nw=Math.max(120,Math.min(aw-dw-120,startW+(e.clientX-startX))); paneL.style.width=nw+'px'; paneL.style.flex='none'; });
+  document.addEventListener('mouseup', ()=>{ if(!drag) return; drag=false; divider.classList.remove('dragging'); document.body.classList.remove('no-select'); });
+})();
+
+// ─── MATHJAX ───────────────────────────────────────────────────
+const mjBadge  = document.getElementById('mj-badge');
+const mjReady  = new Promise(resolve=>{
+  (function poll(){
+    if(window.MathJax && MathJax.startup && MathJax.startup.promise){
+      MathJax.startup.promise.then(()=>{ mjBadge.innerHTML='<span class="dot"></span>&nbsp;MathJax 就绪'; mjBadge.classList.add('ready'); resolve(); });
+    } else setTimeout(poll,200);
+  })();
+});
+
+// ─── SVG MATH FOR COPY ─────────────────────────────────────────
+// Renders LaTeX → inline SVG string (with white background, black text)
+const svgCache = new Map();
+async function latexToSvgStr(latex, disp){
+  const key=(disp?'D':'I')+latex;
+  if(svgCache.has(key)) return svgCache.get(key);
+  try{
+    await mjReady;
+    const nd  = await MathJax.tex2svgPromise(latex.trim(),{display:disp});
+    const svg = nd.querySelector('svg');
+    if(!svg){ svgCache.set(key,null); return null; }
+
+    // Measure size
+    const host=document.createElement('div');
+    host.style.cssText='position:fixed;visibility:hidden;top:-99999px;left:0;font-size:16px;line-height:1';
+    host.appendChild(svg.cloneNode(true)); document.body.appendChild(host);
+    const rc=host.firstChild.getBoundingClientRect(); document.body.removeChild(host);
+    const wPx=Math.max(rc.width||40,4), hPx=Math.max(rc.height||14,4);
+
+    svg.setAttribute('width', wPx+'px');
+    svg.setAttribute('height',hPx+'px');
+    svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    svg.setAttribute('xmlns:xlink','http://www.w3.org/1999/xlink');
+    // Force black paths for Word compatibility
+    svg.querySelectorAll('[style]').forEach(el=>{
+      el.style.fill='#000'; el.style.stroke='none';
+    });
+    const str = new XMLSerializer().serializeToString(svg);
+    svgCache.set(key,{str,wPx,hPx}); return {str,wPx,hPx};
+  }catch(e){ console.warn('[svgmath]',e); svgCache.set(key,null); return null; }
+}
+
+// ─── BUILD WORD-READY HTML ─────────────────────────────────────
+// Produce clean HTML with inline styles; paste into Word preserves formatting.
+// Math is embedded as base64-encoded SVG <img> tags.
+
+async function buildWordHtml(md){
+  await mjReady;
+
+  // First pass: collect all math
+  const mathTokens=[];
+  const lexed = marked.lexer(md);
+
+  function collectMath(tokens){
+    for(const t of tokens||[]){
+      if(t.type==='mathBlock'||t.type==='mathInline') mathTokens.push({math:t.math,disp:t.type==='mathBlock'});
+      if(t.tokens) collectMath(t.tokens);
+      if(t.items)  t.items.forEach(i=>collectMath(i.tokens||[]));
+    }
+  }
+  collectMath(lexed);
+
+  // Render all math concurrently
+  await Promise.all(mathTokens.map(m=>latexToSvgStr(m.math,m.disp)));
+
+  // Build HTML with Word-friendly inline styles
+  const wordStyles = `
+    body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;line-height:1.6;margin:0;padding:0}
+    h1{font-size:18pt;font-weight:bold;color:#1F3864;margin:18pt 0 6pt;border-bottom:1pt solid #ccc;padding-bottom:3pt}
+    h2{font-size:14pt;font-weight:bold;color:#2E5596;margin:14pt 0 4pt}
+    h3{font-size:12pt;font-weight:bold;color:#375623;margin:10pt 0 3pt}
+    h4{font-size:11pt;font-weight:bold;margin:8pt 0 2pt}
+    p{margin:4pt 0}
+    ul,ol{margin:4pt 0;padding-left:18pt}
+    li{margin:2pt 0}
+    code{font-family:'Courier New',monospace;font-size:9pt;background:#f3f4f6;padding:1px 4px}
+    pre{font-family:'Courier New',monospace;font-size:9pt;background:#f8f8f6;border:1pt solid #ddd;padding:8pt 10pt;margin:6pt 0}
+    blockquote{border-left:3pt solid #ccc;margin:6pt 0;padding:2pt 0 2pt 10pt;color:#555;font-style:italic}
+    hr{border:none;border-top:1pt solid #ccc;margin:10pt 0}
+    .math-display{text-align:center;margin:10pt 0;display:block}
+    .math-inline{display:inline;vertical-align:middle}
+    img.math{display:inline;vertical-align:middle}
+  `;
+
+  // Custom renderer that inlines SVG as img src
+  const renderer = new marked.Renderer();
+
+  // We override the default rendering to inject math images
+  // Math tokens are converted via the extension renderer above
+  // but we need to intercept them for the copy version
+  // Use a second marked parse with a custom renderer that replaces
+  // \[...\] and \(...\) markers with actual images
+
+  let htmlBody = marked.parse(md);
+
+  // Now replace math placeholders in the rendered HTML with SVG img tags
+  // The rendered HTML contains: <div class="math-display">\[latex\]</div>
+  // and: <span class="math-inline">\(latex\)</span>
+
+  // Replace display math
+  htmlBody = await replaceAsync(htmlBody, /<div class="math-display">\\\[([\s\S]*?)\\\]<\/div>/g, async (match, latex)=>{
+    const r = await latexToSvgStr(latex.trim(), true);
+    if(!r) return `<p><i>${latex}</i></p>`;
+    const b64 = btoa(unescape(encodeURIComponent(r.str)));
+    const dataUri = 'data:image/svg+xml;base64,'+b64;
+    const wPt = Math.round(r.wPx * 0.75);
+    const hPt = Math.round(r.hPx * 0.75);
+    return `<p style="text-align:center;margin:10pt 0"><img src="${dataUri}" width="${wPt}" height="${hPt}" style="display:inline-block;vertical-align:middle" /></p>`;
+  });
+
+  // Replace inline math
+  htmlBody = await replaceAsync(htmlBody, /<span class="math-inline">\\\(([\s\S]*?)\\\)<\/span>/g, async (match, latex)=>{
+    const r = await latexToSvgStr(latex.trim(), false);
+    if(!r) return `<i>${latex}</i>`;
+    const b64 = btoa(unescape(encodeURIComponent(r.str)));
+    const dataUri = 'data:image/svg+xml;base64,'+b64;
+    const wPt = Math.round(r.wPx * 0.75);
+    const hPt = Math.round(r.hPx * 0.75);
+    return `<img src="${dataUri}" width="${wPt}" height="${hPt}" style="display:inline;vertical-align:middle" />`;
+  });
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${wordStyles}</style></head><body>${htmlBody}</body></html>`;
+}
+
+// Async replace helper
+async function replaceAsync(str, regex, asyncFn){
+  const promises=[];
+  str.replace(regex, (match,...args)=>{ promises.push(asyncFn(match,...args)); return match; });
+  const results = await Promise.all(promises);
+  let i=0;
+  return str.replace(regex, ()=>results[i++]);
+}
+
+// ─── COPY TO WORD ──────────────────────────────────────────────
+const copyBtn = document.getElementById('copy-btn');
+const statusEl= document.getElementById('status');
+
+function setStatus(msg,type){ statusEl.textContent=msg; statusEl.className='status'+(type?' '+type:''); }
+
+copyBtn.addEventListener('click', async()=>{
+  const md = inp.value.trim();
+  if(!md){ setStatus('请先输入 Markdown 内容','err'); return; }
+
+  copyBtn.disabled=true;
+  copyBtn.innerHTML='<div class="spin"></div>&nbsp;处理中…';
+  setStatus('正在渲染公式…');
+
+  try{
+    const html = await buildWordHtml(md);
+
+    // Write rich HTML to clipboard
+    const blob = new Blob([html],{type:'text/html'});
+    await navigator.clipboard.write([new ClipboardItem({'text/html':blob})]);
+
+    copyBtn.classList.add('success');
+    copyBtn.innerHTML=`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,7 5.5,10.5 12,4"/></svg>&nbsp;已复制！`;
+    setStatus('✓ 已复制到剪贴板，直接粘贴到 Word 即可','ok');
+
+    setTimeout(()=>{
+      copyBtn.classList.remove('success');
+      copyBtn.innerHTML=`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="8" height="8" rx="1.5"/><path d="M9.5 4.5V3A1.5 1.5 0 0 0 8 1.5H3A1.5 1.5 0 0 0 1.5 3v5A1.5 1.5 0 0 0 3 9.5h1.5"/></svg>&nbsp;复制到 Word`;
+      copyBtn.disabled=false;
+    },2500);
+
+  }catch(e){
+    console.error(e);
+    setStatus('复制失败：'+(e.message||String(e)),'err');
+    copyBtn.disabled=false;
+    copyBtn.innerHTML=`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="8" height="8" rx="1.5"/><path d="M9.5 4.5V3A1.5 1.5 0 0 0 8 1.5H3A1.5 1.5 0 0 0 1.5 3v5A1.5 1.5 0 0 0 3 9.5h1.5"/></svg>&nbsp;复制到 Word`;
+  }
+});
+
+// ─── ARCHIVE ───────────────────────────────────────────────────
+let archives=[], activeId=null;
+function timeAgo(d){ const s=(Date.now()-new Date(d))/1000; if(s<60) return '刚刚'; if(s<3600) return Math.floor(s/60)+'分钟前'; if(s<86400) return Math.floor(s/3600)+'小时前'; return Math.floor(s/86400)+'天前'; }
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderArchive(){
+  const list=document.getElementById('arch-list');
+  document.getElementById('arch-count').textContent=archives.length;
+  if(!archives.length){ list.innerHTML='<div class="arch-empty">存档后，记录将在此显示</div>'; return; }
+  list.innerHTML=archives.map(a=>`
+    <div class="arch-item${a.id===activeId?' active':''}" onclick="loadArch('${a.id}')">
+      <div class="arch-name">${esc(a.name)}</div>
+      <div class="arch-meta">${timeAgo(a.date)} · ${a.md.length.toLocaleString()} 字符</div>
+      <button class="arch-del" title="删除" onclick="delArch('${a.id}',event)">
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="1" y1="1" x2="8" y2="8"/><line x1="8" y1="1" x2="1" y2="8"/></svg>
+      </button>
+    </div>`).join('');
+}
+window.loadArch = function(id){
+  const a=archives.find(x=>x.id===id); if(!a) return;
+  activeId=id; inp.value=a.md;
+  document.getElementById('filename').value=a.name;
+  svgCache.clear(); renderPreview(); renderArchive();
+  setStatus('已打开：'+a.name,'ok');
+};
+window.delArch = function(id,e){
+  e.stopPropagation();
+  archives=archives.filter(x=>x.id!==id);
+  if(activeId===id) activeId=null;
+  renderArchive();
+};
+document.getElementById('save-btn').addEventListener('click',()=>{
+  const md=inp.value.trim();
+  if(!md){ setStatus('内容为空，无法存档','err'); return; }
+  const name=(document.getElementById('filename').value.trim()||'未命名');
+  if(activeId){
+    const a=archives.find(x=>x.id===activeId);
+    if(a){ a.md=md; a.name=name; a.date=new Date().toISOString(); renderArchive(); setStatus('已更新存档：'+name,'ok'); return; }
+  }
+  activeId='a'+Date.now();
+  archives.unshift({id:activeId,name,md,date:new Date().toISOString()});
+  renderArchive();
+  setStatus('已存档：'+name,'ok');
+});
+document.getElementById('new-btn').addEventListener('click',()=>{
+  activeId=null; inp.value=''; document.getElementById('filename').value='document';
+  pv.innerHTML=''; svgCache.clear(); setStatus(''); renderArchive(); inp.focus();
+});
+
+// ─── SIDEBAR COLLAPSE ──────────────────────────────────────────
+(function(){
+  const sidebar   = document.querySelector('.sidebar');
+  const collapseBtn = document.getElementById('sb-collapse-btn');
+  const expandFab   = document.getElementById('sb-expand-fab');
+  collapseBtn.addEventListener('click', ()=>{
+    sidebar.classList.add('collapsed');
+    expandFab.classList.add('visible');
+  });
+  expandFab.addEventListener('click', ()=>{
+    sidebar.classList.remove('collapsed');
+    expandFab.classList.remove('visible');
+  });
+})();
+
+// ─── MISC ──────────────────────────────────────────────────────
+document.getElementById('btn-sample').addEventListener('click',()=>{ inp.value=SAMPLE; svgCache.clear(); renderPreview(); });
+document.getElementById('btn-clear').addEventListener('click',()=>{ inp.value=''; pv.innerHTML=''; svgCache.clear(); setStatus(''); });
+renderPreview();
+mjReady.then(renderPreview);
+</script>
+</body>
+</html>
